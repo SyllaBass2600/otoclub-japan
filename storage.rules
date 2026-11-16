@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// Cloud Storage for Firebase のセキュリティルール
+//
+// イベント画像は、登録した本人のフォルダ users/{uid}/events/{eventId}/ に置く
+// （ImageStorageService.eventImageFolder）。
+// イベントを保存する前にアップロードするため、イベントではなくフォルダの持ち主で判定する。
+// 管理者（firestore.rules の isAdmin と同じ）は、ほかの人のイベントの画像も差し替え・削除できる。
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // アップロードされるのが画像で、2MB 未満か
+    // （アプリ側で 1.5MB 以下の JPEG に圧縮してからアップロードする）
+    function isValidImage() {
+      return request.resource != null
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'syllabass2600@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    // イベント画像（公開イベントの画像はログインしていない人にも見せる）
+    match /users/{uid}/events/{eventId}/{fileName} {
+      allow read: if true;
+      allow create, update: if isValidImage() && (isOwner(uid) || isAdmin());
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+  }
+}

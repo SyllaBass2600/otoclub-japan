@@ -1,0 +1,33 @@
+# Compiled JavaScript files
+lib/
+*.js
+!test/*.test.js
+!.eslintrc.js
+*.js.map
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Node.js dependencies
+node_modules/
+
+# Service Account Key (重要！公開しない)
+service-account-key.json
+*.json
+!package.json
+!tsconfig.json
+
+# Firebase cache
+.firebase/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+firebase-debug.log*
+firebase-debug.*.log
+
+# OS files
+.DS_Store
+Thumbs.db

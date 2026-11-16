@@ -1,0 +1,12 @@
+{
+  "APP_ENV": "stg",
+  "FIREBASE_PROJECT_ID": "<Firebase のプロジェクト ID>",
+  "FIREBASE_API_KEY": "<Firebase コンソール → プロジェクトの設定 → マイアプリ（ウェブ）の apiKey>",
+  "FIREBASE_APP_ID": "<appId>",
+  "FIREBASE_MESSAGING_SENDER_ID": "<messagingSenderId>",
+  "FIREBASE_AUTH_DOMAIN": "<authDomain>",
+  "FIREBASE_STORAGE_BUCKET": "<storageBucket>",
+  "FIREBASE_MEASUREMENT_ID": "",
+  "USE_EMULATOR": false,
+  "EMULATOR_HOST": "localhost"
+}

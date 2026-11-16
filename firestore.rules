@@ -1,0 +1,93 @@
+rules_version = '2';
+
+// Firestore のセキュリティルール
+//
+// イベント（events）はログインした個人が登録する（団体はない）。
+// - 公開中のイベント（isPublished == true）は、ログインしていない人も読める
+// - 非公開のイベントは、登録した本人（createdBy）と管理者だけが読める
+// - 登録はログインした人。編集・削除は登録した本人と管理者だけ
+// - 管理者は1人だけ（isAdmin）。すべてのイベントを読み・編集・削除できる
+//   （アプリの lib/config/admin.dart、storage.rules と同じメールアドレスにする）
+// - 公式カレンダーの同期結果（googleCalendarEventId など）は Cloud Functions だけが書き込む
+//
+// ルールは絞り込み条件ではないため、一覧のクエリには isPublished == true か
+// createdBy == 自分 を付ける（EventRepository.watchEventsBetween）。管理者は付けなくてよい。
+//
+// Discord 通知の送信記録（discordNotifications）は Cloud Functions だけが使う。
+// ここに定義がないので、アプリからは読み書きできない。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // 管理者（全権限）。Google が確認済みのメールアドレスで判定する
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.token.email == 'syllabass2600@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    // 登録した本人か管理者
+    function canManage(event) {
+      return isSignedIn() && (event.createdBy == request.auth.uid || isAdmin());
+    }
+
+    // Cloud Functions だけが書き込む項目
+    function syncFields() {
+      return ['googleCalendarEventId', 'syncStatus', 'syncedAt', 'syncError', 'syncErrorAt'];
+    }
+
+    function isTime(value) {
+      return value is string && value.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+    }
+
+    function isOptionalString(data, key, maxSize) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxSize);
+    }
+
+    // イベントの内容が正しいか（アプリの EventData.toFirestore と揃える）
+    function isValidEvent(data) {
+      return data.keys().hasOnly([
+          'eventName', 'date', 'startTime', 'endTime', 'description',
+          'createdAt', 'createdBy', 'version',
+          'flyerImageUrl', 'otherImageUrls', 'prefecture', 'location',
+          'websiteUrl', 'twitterUrl', 'isPublished',
+          'googleCalendarEventId', 'syncStatus', 'syncedAt', 'syncError', 'syncErrorAt'])
+        && data.eventName is string && data.eventName.size() > 0 && data.eventName.size() <= 200
+        && data.date is timestamp
+        && isTime(data.startTime) && isTime(data.endTime)
+        && data.description is string && data.description.size() <= 5000
+        && data.isPublished is bool
+        && data.createdBy is string
+        && (!('otherImageUrls' in data) || (data.otherImageUrls is list && data.otherImageUrls.size() <= 3))
+        && isOptionalString(data, 'flyerImageUrl', 2000)
+        && isOptionalString(data, 'prefecture', 10)
+        && isOptionalString(data, 'location', 500)
+        && isOptionalString(data, 'websiteUrl', 2000)
+        && isOptionalString(data, 'twitterUrl', 2000);
+    }
+
+    match /events/{eventId} {
+      allow read: if resource.data.isPublished == true || canManage(resource.data);
+
+      // 登録: 自分を登録者にし、同期結果の項目は書かない
+      allow create: if isSignedIn()
+                    && request.resource.data.createdBy == request.auth.uid
+                    && isValidEvent(request.resource.data)
+                    && !request.resource.data.keys().hasAny(syncFields())
+                    && !('version' in request.resource.data);
+
+      // 更新: 登録した本人と管理者だけ。登録者・作成日時・同期結果は変えられない（管理者も）。版は1つずつ増やす
+      allow update: if canManage(resource.data)
+                    && isValidEvent(request.resource.data)
+                    && !request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(syncFields().concat(['createdBy', 'createdAt']))
+                    && request.resource.data.version == resource.data.get('version', 0) + 1;
+
+      // 削除: 登録した本人と管理者だけ
+      allow delete: if canManage(resource.data);
+    }
+  }
+}
