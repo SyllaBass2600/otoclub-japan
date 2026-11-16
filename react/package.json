@@ -1,0 +1,31 @@
+{
+  "name": "otoclub-japan-web",
+  "private": true,
+  "version": "0.1.0",
+  "description": "日本音クラ情報局 - イベントカレンダー（React 版）",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --mode dev",
+    "build": "tsc --noEmit && vite build --mode prod",
+    "build:stg": "tsc --noEmit && vite build --mode stg",
+    "preview": "vite preview --mode prod",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "firebase": "^11.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-icons": "^5.4.0",
+    "react-router-dom": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "vitest": "^2.1.0"
+  }
+}
